@@ -27,6 +27,8 @@ function createHandlers(client, store, config, envGuild = '') {
     if (!ticket || ticket.guildId !== interaction.guildId || ticket.status === 'missing') fail('هذا الروم ليس تذكرة مسجلة لدى بوت VOLA.');
     return ticket;
   };
+  const ticketName = (number, closed) => `${closed ? '🔒' : '📘'}・${number}`;
+  const setTicketName = (channel, ticket, closed) => { if (ticket.number) channel.setName(ticketName(ticket.number, closed)).catch(() => console.warn('Ticket rename skipped (Discord rate limit).')); };
   const topic = (ownerId, status) => `vola-ticket:${client.user.id}:${ownerId}:${status}`;
   function withArt(payload, imageUrl, file = 'separator.png') {
     if (imageUrl) payload.embeds[0].setImage(imageUrl);
@@ -117,14 +119,16 @@ function createHandlers(client, store, config, envGuild = '') {
     return locks.run(`owner:${interaction.user.id}`, async () => {
       const found = await existingTicket(store, interaction.guild, client.user.id, interaction.user.id);
       if (found) return interaction.editReply(`عندك تذكرة مفتوحة بالفعل: <#${found}>`);
+      const number = (state.ticketCounter || 0) + 1;
       const category = await interaction.guild.channels.fetch(settings.categoryId);
       if (category?.type !== ChannelType.GuildCategory) fail('قسم التذاكر غير متاح. اطلب من الإدارة إعادة setup.');
       const channel = await interaction.guild.channels.create({
-        name: channelName(`ticket-${interaction.user.username}`), type: ChannelType.GuildText,
+        name: ticketName(number, false), type: ChannelType.GuildText,
         parent: category.id, topic: topic(interaction.user.id, 'open'),
         permissionOverwrites: privateOverwrites(interaction.guildId, client.user.id, settings.supportRoles, interaction.user.id)
       });
-      const ticket = { channelId: channel.id, ownerId: interaction.user.id, guildId: interaction.guildId, type: type.id, status: 'open', claimedBy: null, createdAt: new Date().toISOString() };
+      state.ticketCounter = number;
+      const ticket = { number, channelId: channel.id, ownerId: interaction.user.id, guildId: interaction.guildId, type: type.id, status: 'open', claimedBy: null, createdAt: new Date().toISOString() };
       state.tickets[channel.id] = ticket; store.save();
       const welcome = withArt({
         content: `<@${ticket.ownerId}>`,
@@ -202,6 +206,7 @@ function createHandlers(client, store, config, envGuild = '') {
           await i.channel.permissionOverwrites.edit(ticket.ownerId, { SendMessages: false, AttachFiles: false, AddReactions: false, SendMessagesInThreads: false });
           ticket.status = 'closed'; ticket.closedBy = i.user.id; ticket.closedAt = new Date().toISOString(); ticket.transcript = path.basename(filename); store.save();
           await i.channel.setTopic(topic(ticket.ownerId, 'closed'));
+          setTicketName(i.channel, ticket, true);
           await updateControls(i.channel, ticket);
           await i.channel.send({ content: 'تم إغلاق التذكرة وحفظ نسخة محلية. التذكرة مؤرشفة ولم تُحذف.' });
           await i.editReply({ content: 'تم الإغلاق وحفظ المحادثة.', files: [new AttachmentBuilder(filename)] });
@@ -214,6 +219,7 @@ function createHandlers(client, store, config, envGuild = '') {
             await i.channel.permissionOverwrites.edit(ticket.ownerId, { SendMessages: true, AttachFiles: true, AddReactions: null, SendMessagesInThreads: null });
             ticket.status = 'open'; ticket.closedAt = null; store.save();
             await i.channel.setTopic(topic(ticket.ownerId, 'open'));
+            setTicketName(i.channel, ticket, false);
             await updateControls(i.channel, ticket);
             await i.editReply('تمت إعادة فتح التذكرة.');
             await log(i.guild, `إعادة فتح <#${i.channelId}> بواسطة <@${i.user.id}>`);
