@@ -1,11 +1,13 @@
 'use strict';
+const { saveArchive } = require('./archive');
 const fs = require('node:fs');
 const path = require('node:path');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, ChannelType,
   PermissionFlagsBits: P, ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags } = require('discord.js');
-const { Locks, UserError, fail, idFrom, channelName, isAdmin, isStaff, allowedGuild, privateOverwrites, existingTicket } = require('./core');
-
-function createHandlers(client, store, config, envGuild = '') {
+const { Locks, UserError, fail, idFrom, channelName, isAdmin, isStaff, allowedGuild, privateOverwrites, existingTicket } = require('./core');function createHandlers(client, store, config, envGuild = '', transcriptBaseUrl = '') {
+  let archiveBase = '';
+  if (transcriptBaseUrl) { const url = new URL(transcriptBaseUrl); if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw new Error('TRANSCRIPT_BASE_URL must be a clean HTTPS URL.'); archiveBase = url.toString().replace(/\/+$/, ''); }
+  const archiveUrl = token => archiveBase ? archiveBase + '/tickets/' + token : '';
   const locks = new Locks();
   const state = store.state;
   const settings = state.settings;
@@ -47,12 +49,12 @@ function createHandlers(client, store, config, envGuild = '') {
     allowedMentions: { parse: [] }
   }, settings.panelImage || config.panelImage, 'panel.png');
 
-  async function log(guild, text) {
+  async function log(guild, text, components = []) {
     if (!settings.logChannelId) return;
     try {
       const room = await guild.channels.fetch(settings.logChannelId);
       if (room?.type !== ChannelType.GuildText || room.permissionsFor(guild.roles.everyone)?.has(P.ViewChannel)) throw new Error('Unsafe log channel');
-      await room.send({ embeds: [embed('سجل التذاكر').setDescription(text.slice(0, 3900)).setTimestamp()], allowedMentions: { parse: [] } });
+      await room.send({ embeds: [embed('سجل التذاكر').setDescription(text.slice(0, 3900)).setTimestamp()], components, allowedMentions: { parse: [] } });
     } catch { console.warn('Ticket audit could not be delivered. Check the private log channel.'); }
   }
 
@@ -203,13 +205,17 @@ function createHandlers(client, store, config, envGuild = '') {
         } else if (action === 'close-confirm') {
           if (ticket.status !== 'open') fail('التذكرة مغلقة بالفعل.');
           const filename = await transcript(i.channel, ticket); // Failure must leave the ticket open.
+          ticket.closedBy = i.user.id; ticket.closedAt = new Date().toISOString();
+          const token = saveArchive(store, ticket, filename);
           await i.channel.permissionOverwrites.edit(ticket.ownerId, { SendMessages: false, AttachFiles: false, AddReactions: false, SendMessagesInThreads: false });
-          ticket.status = 'closed'; ticket.closedBy = i.user.id; ticket.closedAt = new Date().toISOString(); ticket.transcript = path.basename(filename); store.save();
+          ticket.status = 'closed'; ticket.transcript = path.basename(filename); ticket.webTranscriptToken = token; store.save();
           await i.channel.setTopic(topic(ticket.ownerId, 'closed'));
           setTicketName(i.channel, ticket, true);
           await updateControls(i.channel, ticket);
           await i.channel.send({ content: 'تم إغلاق التذكرة وحفظ نسخة محلية. التذكرة مؤرشفة ولم تُحذف.' });
           await i.editReply({ content: 'تم الإغلاق وحفظ المحادثة.', files: [new AttachmentBuilder(filename)] });
+          const url = archiveUrl(token);
+          if (url) await log(i.guild, 'رابط أرشيف التذكرة الخاص:', [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('View Ticket').setURL(url))]);
           await log(i.guild, `إغلاق تذكرة <#${i.channelId}>\nالمسؤول: <@${i.user.id}>\nحُفظت نسخة خاصة على التخزين الدائم.`);
         } else if (action === 'reopen') {
           if (ticket.status !== 'closed') fail('التذكرة مفتوحة بالفعل.');
