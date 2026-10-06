@@ -13,7 +13,7 @@ const { Locks, UserError, fail, idFrom, channelName, isAdmin, isStaff, allowedGu
   const settings = state.settings;
   const prefix = config.prefix;
   const color = () => settings.color || config.color;
-  const embed = title => new EmbedBuilder().setTitle(title).setColor(color()).setFooter({ text: `${config.brand} • رضاك غايتنا` });
+  const embed = title => new EmbedBuilder().setTitle(title).setColor(color()).setFooter({ text: `${config.brand} • عند شرائك لأي منتج من المنتجات فإنك توافق على الشروط والأحكام.` });
   const btn = (id, label, style = ButtonStyle.Secondary) => new ButtonBuilder().setCustomId(`vola:${id}`).setLabel(label).setStyle(style);
   const controls = closed => new ActionRowBuilder().addComponents(...(closed
     ? [btn('reopen', 'إعادة فتح', ButtonStyle.Primary), btn('export', 'نسخة المحادثة')]
@@ -133,9 +133,9 @@ const { Locks, UserError, fail, idFrom, channelName, isAdmin, isStaff, allowedGu
       const ticket = { number, channelId: channel.id, ownerId: interaction.user.id, guildId: interaction.guildId, type: type.id, status: 'open', claimedBy: null, createdAt: new Date().toISOString() };
       state.tickets[channel.id] = ticket; store.save();
       const welcome = withArt({
-        content: `<@${ticket.ownerId}>`,
+        content: settings.supportRoles.map(roleId => `<@&${roleId}>`).join(' '),
         embeds: [embed(`${config.brand} | ${type.label}`)],
-        components: [controls(false)], allowedMentions: { parse: [], users: [ticket.ownerId] }
+        components: [controls(false)], allowedMentions: { parse: [], roles: settings.supportRoles }
       }, settings.insideImage || config.insideImage, 'welcome.png');
       const sent = await channel.send(welcome);
       ticket.controlsMessageId = sent.id; store.save();
@@ -214,6 +214,7 @@ const { Locks, UserError, fail, idFrom, channelName, isAdmin, isStaff, allowedGu
           await updateControls(i.channel, ticket);
           await i.channel.send({ content: 'تم إغلاق التذكرة وحفظ نسخة محلية. التذكرة مؤرشفة ولم تُحذف.' });
           await i.editReply({ content: 'تم الإغلاق وحفظ المحادثة.', files: [new AttachmentBuilder(filename)] });
+          await client.users.fetch(ticket.ownerId).then(user => user.send({ content: '**شكراً لك لشرائك من متجر Vola Store\nنتمنى تقيمك ياعسل ** <:emoji:1550600087833673930>\nhttps://discord.com/channels/1447961768776437795/1447978433178239211' })).catch(() => {});
           const url = archiveUrl(token);
           if (url) await log(i.guild, 'رابط أرشيف التذكرة الخاص:', [new ActionRowBuilder().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('View Ticket').setURL(url))]);
           await log(i.guild, `إغلاق تذكرة <#${i.channelId}>\nالمسؤول: <@${i.user.id}>\nحُفظت نسخة خاصة على التخزين الدائم.`);
