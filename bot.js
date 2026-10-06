@@ -40,7 +40,7 @@ function createHandlers(client, store, config, envGuild = '') {
     return payload;
   }
   const panel = () => withArt({
-    embeds: [embed(config.panelTitle).setDescription(settings.panelText || config.panelText)],
+    embeds: [embed(config.panelTitle)],
     components: [new ActionRowBuilder().addComponents(config.types.map(t => btn(`open:${t.id}`, t.label, ButtonStyle.Primary).setEmoji(t.emoji)))],
     allowedMentions: { parse: [] }
   }, settings.panelImage || config.panelImage, 'panel.png');
@@ -128,9 +128,9 @@ function createHandlers(client, store, config, envGuild = '') {
       state.tickets[channel.id] = ticket; store.save();
       const welcome = withArt({
         content: `<@${ticket.ownerId}>`,
-        embeds: [embed(`${config.brand} | ${type.label}`).setDescription(settings.welcomeText || config.welcomeText)],
+        embeds: [embed(`${config.brand} | ${type.label}`)],
         components: [controls(false)], allowedMentions: { parse: [], users: [ticket.ownerId] }
-      }, settings.insideImage || config.insideImage);
+      }, settings.insideImage || config.insideImage, 'welcome.png');
       const sent = await channel.send(welcome);
       ticket.controlsMessageId = sent.id; store.save();
       await interaction.editReply(`تم فتح تذكرتك: <#${channel.id}>`);
