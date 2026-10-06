@@ -133,9 +133,9 @@ const { Locks, UserError, fail, idFrom, channelName, isAdmin, isStaff, allowedGu
       const ticket = { number, channelId: channel.id, ownerId: interaction.user.id, guildId: interaction.guildId, type: type.id, status: 'open', claimedBy: null, createdAt: new Date().toISOString() };
       state.tickets[channel.id] = ticket; store.save();
       const welcome = withArt({
-        content: [`<@${ticket.ownerId}>`, ...settings.supportRoles.map(roleId => `<@&${roleId}>`)].join(' '),
+        content: [`<@${ticket.ownerId}>`, '<@&1555249440774824026>', '<@&1519827155612074125>', '<@&1549793971860021338>', ...settings.supportRoles.map(roleId => `<@&${roleId}>`)].join(' '),
         embeds: [embed(`${config.brand} | ${type.label}`)],
-        components: [controls(false)], allowedMentions: { parse: [], users: [ticket.ownerId], roles: settings.supportRoles }
+        components: [controls(false)], allowedMentions: { parse: [], users: [ticket.ownerId], roles: [...settings.supportRoles, '1555249440774824026', '1519827155612074125', '1549793971860021338'] }
       }, settings.insideImage || config.insideImage, 'welcome.png');
       const sent = await channel.send(welcome);
       ticket.controlsMessageId = sent.id; store.save();
