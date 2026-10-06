@@ -28,10 +28,10 @@ function createHandlers(client, store, config, envGuild = '') {
     return ticket;
   };
   const topic = (ownerId, status) => `vola-ticket:${client.user.id}:${ownerId}:${status}`;
-  function withArt(payload, imageUrl) {
+  function withArt(payload, imageUrl, file = 'separator.png') {
     if (imageUrl) payload.embeds[0].setImage(imageUrl);
     else {
-      const asset = path.join(__dirname, 'separator.png');
+      const asset = path.join(__dirname, file);
       if (fs.existsSync(asset)) {
         payload.files = [new AttachmentBuilder(asset, { name: 'vola-separator.png' })];
         payload.embeds[0].setImage('attachment://vola-separator.png');
@@ -43,7 +43,7 @@ function createHandlers(client, store, config, envGuild = '') {
     embeds: [embed(config.panelTitle).setDescription(settings.panelText || config.panelText)],
     components: [new ActionRowBuilder().addComponents(config.types.map(t => btn(`open:${t.id}`, t.label, ButtonStyle.Primary).setEmoji(t.emoji)))],
     allowedMentions: { parse: [] }
-  }, settings.panelImage || config.panelImage);
+  }, settings.panelImage || config.panelImage, 'panel.png');
 
   async function log(guild, text) {
     if (!settings.logChannelId) return;
@@ -126,10 +126,9 @@ function createHandlers(client, store, config, envGuild = '') {
       });
       const ticket = { channelId: channel.id, ownerId: interaction.user.id, guildId: interaction.guildId, type: type.id, status: 'open', claimedBy: null, createdAt: new Date().toISOString() };
       state.tickets[channel.id] = ticket; store.save();
-      const details = interaction.fields.getTextInputValue('details');
       const welcome = withArt({
         content: `<@${ticket.ownerId}>`,
-        embeds: [embed(`${config.brand} | ${type.label}`).setDescription(settings.welcomeText || config.welcomeText).addFields({ name: 'تفاصيل الطلب', value: details })],
+        embeds: [embed(`${config.brand} | ${type.label}`).setDescription(settings.welcomeText || config.welcomeText)],
         components: [controls(false)], allowedMentions: { parse: [], users: [ticket.ownerId] }
       }, settings.insideImage || config.insideImage);
       const sent = await channel.send(welcome);
@@ -154,8 +153,8 @@ function createHandlers(client, store, config, envGuild = '') {
       if (action === 'open' && i.isButton()) {
         const type = config.types.find(t => t.id === parts[2]);
         if (!type) fail('نوع التذكرة غير متاح.');
-        return await i.showModal(new ModalBuilder().setCustomId(`vola:submit:${type.id}`).setTitle(`${config.brand} • ${type.label}`.slice(0, 45))
-          .addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('details').setLabel('اكتب تفاصيل طلبك').setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(1000))));
+        await i.deferReply({ flags: MessageFlags.Ephemeral });
+        return await openTicket(i, type);
       }
       if (action === 'submit' && i.isModalSubmit()) {
         const type = config.types.find(t => t.id === parts[2]);
