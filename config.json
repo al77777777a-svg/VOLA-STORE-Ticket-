@@ -1,0 +1,15 @@
+{
+  "brand": "VOLA STORE",
+  "prefix": "!vt",
+  "color": "#AFC9F5",
+  "panelTitle": "VOLA STORE | التذاكر",
+  "panelText": "حياك في VOLA STORE 💙\nاختر نوع التذكرة من الأزرار، ثم اكتب تفاصيل طلبك.\nفريق المتجر بيرد عليك داخل تذكرة خاصة.\nلا ترسل كلمات مرور أو بيانات دفع حساسة.",
+  "welcomeText": "حياك في VOLA STORE، اكتب تفاصيل طلبك وانتظر رد فريق المتجر.\nرضاك غايتنا",
+  "panelImage": "",
+  "insideImage": "",
+  "types": [
+    { "id": "order", "label": "طلب شراء", "emoji": "🛍️" },
+    { "id": "support", "label": "الدعم الفني", "emoji": "🛠️" },
+    { "id": "question", "label": "استفسار", "emoji": "💬" }
+  ]
+}

@@ -1,0 +1,11 @@
+VOLA STORE - Ticket Bot (flat version, no folders)
+
+1. Create a NEW private GitHub repo and upload ALL files in this folder (drag them all at once).
+   package.json and Dockerfile must be at the repo root.
+2. Railway: New -> GitHub Repo -> choose the new repo. Do not touch sublime-generosity.
+3. Variables: DISCORD_TOKEN = ticket bot token, DATA_DIR = /data/vola-ticket
+4. Add a Volume mounted at /data. Replicas = 1.
+5. Discord Developer Portal -> Bot -> enable Message Content Intent.
+6. When logs show "VOLA STORE Ticket online", in the panel channel run:
+   !vt setup @SupportRole   (use a real role mention)
+Help: !vt help
